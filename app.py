@@ -101,4 +101,16 @@ with ui.layout_columns():
 with ui.card(full_screen=True):
     ui.card_header("Plotly Scatterplot: Species")
     
-   
+    @render_plotly
+    def plotly_scatterplot():
+        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        fig = px.scatter(
+            filtered_df,
+            x="bill_length_mm",
+            y="bill_depth_mm",
+            color="species",
+            size="body_mass_g",
+            hover_data=["island", "sex"],
+            title="Bill Length vs Bill Depth"
+        )
+        return fig

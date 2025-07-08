@@ -1,116 +1,143 @@
-"""
-Penguin Dashboard App
-An interactive web app to explore Palmer Penguins dataset
-"""
-
 import plotly.express as px
-from shiny.express import input, ui
-from shinywidgets import render_plotly
-from shiny import render
 import seaborn as sns
-import pandas as pd
+import matplotlib.pyplot as plt
+from shiny import App, ui, render
+from shinywidgets import output_widget, render_plotly, render_widget
 from palmerpenguins import load_penguins
 
-# Load penguin data
+# Load data
 penguins_df = load_penguins()
 
-# Create sidebar for user inputs
-with ui.sidebar(open="open"):
-    ui.h2("Sidebar")
-    
-    # Dropdown to select attribute
-    ui.input_selectize(
-        "selected_attribute",
-        "Select Attribute:",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
-    )
-    
-    # Numeric input for Plotly bins
-    ui.input_numeric(
-        "plotly_bin_count",
-        "Plotly Bin Count:",
-        20
-    )
-    
-    # Slider for Seaborn bins
-    ui.input_slider(
-        "seaborn_bin_count",
-        "Seaborn Bin Count:",
-        5, 30, 15
-    )
-    
-    # Checkbox group for species selection
-    ui.input_checkbox_group(
-        "selected_species_list",
-        "Filter Species:",
-        ["Adelie", "Gentoo", "Chinstrap"],
-        selected=["Adelie", "Gentoo", "Chinstrap"],
-        inline=True
-    )
-    
-    ui.hr()
-    
-    # GitHub link
-    ui.a(
-        "GitHub",
-        href="https://github.com/yourusername/cintel-02-data",
-        target="_blank"
-    )
+# UI
+app_ui = ui.page_fluid(
+    ui.layout_sidebar(
+        ui.sidebar(
+            ui.h2("Sidebar"),
 
-# Main content area
-ui.h1("Palmer Penguins Dashboard")
+            ui.input_selectize(
+                "selected_attribute",
+                "Select a numeric attribute:",
+                ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
+            ),
 
-# First row with data tables
-with ui.layout_columns():
+            ui.input_numeric(
+                "plotly_bin_count",
+                "Plotly Histogram Bins:",
+                value=10,
+            ),
+
+            ui.input_slider(
+                "seaborn_bin_count",
+                "Seaborn Histogram Bins:",
+                min=5,
+                max=50,
+                value=20,
+            ),
+
+            ui.input_checkbox_group(
+                "selected_species_list",
+                "Filter by species:",
+                ["Adelie", "Gentoo", "Chinstrap"],
+                selected=["Adelie", "Gentoo", "Chinstrap"],
+                inline=True,
+            ),
+
+            ui.hr(),
+
+            ui.a(
+                "GitHub",
+                href="https://github.com/egbogbo11/cintel-02-data",
+                target="_blank",
+            ),
+
+            open="open"
+        ),
+
+        ui.layout_columns(
+            ui.output_data_frame("data_table"),
+            ui.output_data_frame("data_grid"),
+        ),
+
+        ui.layout_columns(
+            output_widget("plotly_histogram"),
+            ui.output_plot("seaborn_histogram"),
+        ),
+
+        ui.card(
+            ui.card_header("Plotly Scatterplot: Species"),
+            output_widget("plotly_scatterplot"),
+            full_screen=True,
+        ),
+    )
+)
+
+# Server
+def server(input, output, session):
+
     @render.data_frame
-    def penguins_datatable():
-        return penguins_df
+    def data_table():
+        return penguins_df[
+            penguins_df["species"].isin(input.selected_species_list())
+        ]
 
     @render.data_frame
-    def penguins_datagrid():
-        return render.DataGrid(penguins_df, filters=True)
+    def data_grid():
+        return penguins_df[
+            penguins_df["species"].isin(input.selected_species_list())
+        ].describe().reset_index()
 
-# Second row with histograms
-with ui.layout_columns():
     @render_plotly
     def plotly_histogram():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        col = input.selected_attribute()
+        bins = input.plotly_bin_count() or 10
+        filtered = penguins_df[
+            penguins_df["species"].isin(input.selected_species_list())
+        ]
         fig = px.histogram(
-            filtered_df,
-            x=input.selected_attribute(),
-            nbins=input.plotly_bin_count(),
+            filtered,
+            x=col,
+            nbins=bins,
             color="species",
-            title="Plotly Histogram"
+            title=f"Plotly Histogram of {col}"
         )
         return fig
 
     @render.plot
     def seaborn_histogram():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
-        plot = sns.histplot(
-            data=filtered_df,
-            x=input.selected_attribute(),
-            bins=input.seaborn_bin_count(),
+        col = input.selected_attribute()
+        bins = input.seaborn_bin_count() or 20
+        filtered = penguins_df[
+            penguins_df["species"].isin(input.selected_species_list())
+        ]
+        fig, ax = plt.subplots()
+        sns.histplot(
+            data=filtered,
+            x=col,
+            bins=bins,
+            kde=True,
             hue="species",
-            multiple="stack"
+            ax=ax
         )
-        plot.set_title("Seaborn Histogram")
-        return plot
+        ax.set_title(f"Seaborn Histogram of {col}")
+        return fig
 
-# Third row with scatterplot in full-screen card
-with ui.card(full_screen=True):
-    ui.card_header("Plotly Scatterplot: Species")
-    
     @render_plotly
     def plotly_scatterplot():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        filtered = penguins_df[
+            penguins_df["species"].isin(input.selected_species_list())
+        ]
         fig = px.scatter(
-            filtered_df,
+            filtered,
             x="bill_length_mm",
-            y="bill_depth_mm",
+            y="body_mass_g",
             color="species",
-            size="body_mass_g",
-            hover_data=["island", "sex"],
-            title="Bill Length vs Bill Depth"
+            hover_data=["island"],
+            title="Plotly Scatterplot: Bill Length vs Body Mass",
+            labels={
+                "bill_length_mm": "Bill Length (mm)",
+                "body_mass_g": "Body Mass (g)",
+            },
         )
         return fig
+
+app = App(app_ui, server)

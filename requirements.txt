@@ -1,0 +1,5 @@
+pandas
+plotly
+palmerpenguins
+seaborn
+matplotlib

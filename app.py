@@ -14,7 +14,7 @@ from palmerpenguins import load_penguins
 # Load penguin data
 penguins_df = load_penguins()
 
-# Create sidebar for user inputs
+# Sidebar inputs
 with ui.sidebar(open="open"):
     ui.h2("Sidebar")
     
@@ -52,10 +52,10 @@ with ui.sidebar(open="open"):
         target="_blank"
     )
 
-# Main content area
+# Main title
 ui.h1("Palmer Penguins Dashboard")
 
-# First row with data tables
+# First row – Data Table and Grid
 with ui.layout_columns():
     @render.data_frame
     def penguins_datatable():
@@ -65,7 +65,7 @@ with ui.layout_columns():
     def penguins_datagrid():
         return render.DataGrid(filtered_data(), filters=True)
 
-# Second row with histograms
+# Second row – Histograms
 with ui.layout_columns():
     @render_plotly
     def plotly_histogram():
@@ -92,7 +92,7 @@ with ui.layout_columns():
         plot.set_title("Seaborn Histogram")
         return plot
 
-# Third row with scatterplot in full-screen card
+# Third row – Scatterplot
 with ui.card(full_screen=True):
     ui.card_header("Plotly Scatterplot: Species")
 
@@ -123,7 +123,7 @@ with ui.card(full_screen=True):
         return fig
 
 # --------------------------------------------------------
-# Reactive calculations and effects
+# Reactive Calculation
 # --------------------------------------------------------
 
 @reactive.calc

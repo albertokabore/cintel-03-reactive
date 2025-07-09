@@ -18,28 +18,24 @@ penguins_df = load_penguins()
 with ui.sidebar(open="open"):
     ui.h2("Sidebar")
     
-    # Dropdown to select attribute
     ui.input_selectize(
         "selected_attribute",
         "Select Attribute:",
         ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
     )
     
-    # Numeric input for Plotly bins
     ui.input_numeric(
         "plotly_bin_count",
         "Plotly Bin Count:",
         20
     )
     
-    # Slider for Seaborn bins
     ui.input_slider(
         "seaborn_bin_count",
         "Seaborn Bin Count:",
         5, 30, 15
     )
     
-    # Checkbox group for species selection
     ui.input_checkbox_group(
         "selected_species_list",
         "Filter Species:",
@@ -50,10 +46,9 @@ with ui.sidebar(open="open"):
     
     ui.hr()
     
-    # GitHub link
     ui.a(
         "GitHub",
-        href="https://github.com/yourusername/cintel-02-data",
+        href="https://github.com/albertokabore/cintel-03-reactive",
         target="_blank"
     )
 
@@ -64,19 +59,19 @@ ui.h1("Palmer Penguins Dashboard")
 with ui.layout_columns():
     @render.data_frame
     def penguins_datatable():
-        return penguins_df
+        return filtered_data()
 
     @render.data_frame
     def penguins_datagrid():
-        return render.DataGrid(penguins_df, filters=True)
+        return render.DataGrid(filtered_data(), filters=True)
 
 # Second row with histograms
 with ui.layout_columns():
     @render_plotly
     def plotly_histogram():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        df = filtered_data().dropna(subset=[input.selected_attribute()])
         fig = px.histogram(
-            filtered_df,
+            df,
             x=input.selected_attribute(),
             nbins=input.plotly_bin_count(),
             color="species",
@@ -86,9 +81,9 @@ with ui.layout_columns():
 
     @render.plot
     def seaborn_histogram():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        df = filtered_data().dropna(subset=[input.selected_attribute()])
         plot = sns.histplot(
-            data=filtered_df,
+            data=df,
             x=input.selected_attribute(),
             bins=input.seaborn_bin_count(),
             hue="species",
@@ -100,23 +95,35 @@ with ui.layout_columns():
 # Third row with scatterplot in full-screen card
 with ui.card(full_screen=True):
     ui.card_header("Plotly Scatterplot: Species")
-    
+
     @render_plotly
     def plotly_scatterplot():
-        filtered_df = penguins_df[penguins_df["species"].isin(input.selected_species_list())]
+        df = filtered_data().dropna(subset=[
+            "bill_length_mm",
+            "bill_depth_mm",
+            "body_mass_g",
+            "species",
+            "island",
+            "sex"
+        ])
         fig = px.scatter(
-            filtered_df,
+            df,
             x="bill_length_mm",
             y="bill_depth_mm",
             color="species",
             size="body_mass_g",
             hover_data=["island", "sex"],
-            title="Bill Length vs Bill Depth"
+            title="Bill Length vs Bill Depth",
+            labels={
+                "bill_length_mm": "Bill Length (mm)",
+                "bill_depth_mm": "Bill Depth (mm)",
+                "body_mass_g": "Body Mass (g)"
+            }
         )
         return fig
 
 # --------------------------------------------------------
-# Action 2: Add a reactive calculation
+# Reactive calculations and effects
 # --------------------------------------------------------
 
 @reactive.calc
